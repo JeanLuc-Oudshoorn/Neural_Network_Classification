@@ -4,7 +4,6 @@ import pandas as pd
 from datetime import datetime
 import tensorflow as tf
 import string
-# import matplotlib.pyplot as plt
 from tensorflow import keras
 from sklearn.preprocessing import OneHotEncoder, FunctionTransformer
 from sklearn.compose import ColumnTransformer
@@ -141,16 +140,13 @@ embedding = keras.layers.Embedding(input_dim=input_dim, output_dim=6)(input_b)
 flatten = keras.layers.Flatten()(embedding)
 
 # Concatenate numeric input with embeddings
-concat = keras.layers.Concatenate()([input_a, embedding])
+concat = keras.layers.Concatenate()([input_a, flatten])
 
 # Five hidden layers with Batch Normalization
 batch_norm1 = keras.layers.BatchNormalization()(concat)
-hidden1 = keras.layers.Dense(12, activation='leaky_relu', kernel_initializer='he_normal')(normalized)
+hidden1 = keras.layers.Dense(12, activation='leaky_relu', kernel_initializer='he_normal')(batch_norm1)
 
-# Insert a dropout layer
-dropout1 = keras.layers.Dropout(0.25)(hidden1)
-
-batch_norm2 = keras.layers.BatchNormalization()(dropout1)
+batch_norm2 = keras.layers.BatchNormalization()(hidden1)
 hidden2 = keras.layers.Dense(12, activation='leaky_relu', kernel_initializer='he_normal')(batch_norm2)
 
 batch_norm3 = keras.layers.BatchNormalization()(hidden2)
@@ -162,11 +158,8 @@ dropout2 = keras.layers.Dropout(0.25)(hidden3)
 batch_norm4 = keras.layers.BatchNormalization()(dropout2)
 hidden4 = keras.layers.Dense(12, activation='leaky_relu', kernel_initializer='he_normal')(batch_norm4)
 
-batch_norm5 = keras.layers.BatchNormalization()(hidden4)
-hidden5 = keras.layers.Dense(12, activation='leaky_relu', kernel_initializer='he_normal')(batch_norm5)
-
 # Skip connection -- wide and deep network
-concat2 = keras.layers.Concatenate()([input_a, hidden5])
+concat2 = keras.layers.Concatenate()([input_a, hidden4])
 
 # Output layer for binary classification
 output = keras.layers.Dense(1, activation='sigmoid')(concat2)

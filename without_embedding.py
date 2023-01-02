@@ -4,7 +4,7 @@ import pandas as pd
 from datetime import datetime
 import tensorflow as tf
 import string
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 from tensorflow import keras
 from sklearn.preprocessing import OneHotEncoder, FunctionTransformer
 from sklearn.compose import ColumnTransformer
@@ -131,28 +131,22 @@ normalized = keras.layers.Normalization()(input_)
 
 # Five hidden layers with Batch Normalization
 # batch_norm1 = keras.layers.BatchNormalization()(concat)
-hidden1 = keras.layers.Dense(20, activation='leaky_relu', kernel_initializer='he_normal')(normalized)
+hidden1 = keras.layers.Dense(12, activation='relu', kernel_initializer='he_normal')(normalized)
 
-# Insert dropout layer
-dropout1 = keras.layers.Dropout(0.25)(hidden1)
-
-batch_norm2 = keras.layers.BatchNormalization()(dropout1)
-hidden2 = keras.layers.Dense(20, activation='leaky_relu', kernel_initializer='he_normal')(batch_norm2)
+batch_norm2 = keras.layers.BatchNormalization()(hidden1)
+hidden2 = keras.layers.Dense(12, activation='relu', kernel_initializer='he_normal')(batch_norm2)
 
 batch_norm3 = keras.layers.BatchNormalization()(hidden2)
-hidden3 = keras.layers.Dense(20, activation='leaky_relu', kernel_initializer='he_normal')(batch_norm3)
+hidden3 = keras.layers.Dense(12, activation='relu', kernel_initializer='he_normal')(batch_norm3)
 
 # Insert dropout layer
 dropout2 = keras.layers.Dropout(0.25)(hidden3)
 
-batch_norm4 = keras.layers.BatchNormalization()(dropout2)
-hidden4 = keras.layers.Dense(20, activation='leaky_relu', kernel_initializer='he_normal')(batch_norm4)
-
-batch_norm5 = keras.layers.BatchNormalization()(hidden4)
-hidden5 = keras.layers.Dense(20, activation='leaky_relu', kernel_initializer='he_normal')(batch_norm5)
+batch_norm4 = keras.layers.BatchNormalization()(hidden3)
+hidden4 = keras.layers.Dense(12, activation='relu', kernel_initializer='he_normal')(batch_norm4)
 
 # Skip connection -- wide and deep network
-concat = keras.layers.Concatenate()([input_, hidden5])
+concat = keras.layers.Concatenate()([input_, hidden4])
 
 # Output layer for binary classification
 output = keras.layers.Dense(1, activation='sigmoid')(concat)
@@ -161,7 +155,7 @@ output = keras.layers.Dense(1, activation='sigmoid')(concat)
 model = keras.Model(inputs=[input_], outputs=output)
 
 # Compile the model
-model.compile(optimizer='nadam', loss='binary_crossentropy', metrics=['accuracy', 'AUC'])
+model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy', 'AUC'])
 
 # Print model summary
 print(model.summary())
@@ -170,7 +164,7 @@ print(model.summary())
 tf.random.set_seed(7)
 
 # Train the model on GPU
-with tf.device('/gpu:0'):
+with tf.device('/cpu:0'):
 
     # Create Callback to save model
     checkpoint_cb = keras.callbacks.ModelCheckpoint('my_checkpoints',
@@ -189,10 +183,10 @@ with tf.device('/gpu:0'):
     val_ratio_cb = PrintValTrainRatioCallback()
 
     # Create performance scheduler for learning rate
-    lr_scheduler = keras.callbacks.ReduceLROnPlateau(factor=0.5, patience=6)
+    lr_scheduler = keras.callbacks.ReduceLROnPlateau(factor=0.5, patience=8)
 
     # Train the model
-    history = model.fit(X_train_prepped, y_train, epochs=150, batch_size=32, validation_split=0.2,
+    history = model.fit(X_train_prepped, y_train, epochs=200, batch_size=32, validation_split=0.2,
                         callbacks=[checkpoint_cb, early_stopping_cb, val_ratio_cb, lr_scheduler])
 
 ###############################################################################
@@ -203,6 +197,17 @@ with tf.device('/gpu:0'):
 loss, accuracy, auc = model.evaluate(X_test_prepped, y_test)
 print("\n Model evaluation statistics\n")
 print("Model accuracy: {acc} - auc: {auc}".format(acc=accuracy, auc=auc))
+
+# Plot AUC during training
+plt.grid(visible=True)
+plt.plot(history.epoch, history.history['auc'])
+plt.plot(history.epoch, history.history['val_auc'])
+plt.legend(['AUC', 'Val. AUC'])
+plt.xlabel('Epoch')
+plt.ylabel('ROC AUC score')
+plt.title('ROC AUC per Epoch')
+plt.savefig('training_progression.png')
+plt.show()
 
 # Save the model
 model.save("neural_net_classifier_vanilla", save_format="tf")
